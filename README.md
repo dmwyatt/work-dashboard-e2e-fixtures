@@ -14,38 +14,40 @@ The Work Dashboard aggregates GitHub PR data. This test repo contains PRs in kno
 
 ## Test PRs
 
+PRs are identified by branch name (stable) rather than PR number (changes over time).
+
 ### Your PRs (for "My Open PRs" testing)
 
-PRs authored by the primary account:
+PRs authored by dmwyatt:
 
-| PR # | Name | State | Purpose |
-|------|------|-------|---------|
-| #1 | Mixed Reviews | CHANGES_REQUESTED | Tests review state aggregation with multiple reviewers |
-| #2 | Awaiting Review | REVIEW_REQUIRED | Tests PRs waiting for first review |
-| #3 | Draft PR | Draft | Tests draft PR display |
-| #4 | Approved PR | APPROVED | Tests approved state and LOW priority |
-| #5 | PR with Notes | Open | Tests note detection (author self-annotations) |
-| #6 | Extension Test | Open | Stable target for browser extension E2E tests |
+| Branch | State | Purpose |
+|--------|-------|---------|
+| `feature/mixed-reviews` | CHANGES_REQUESTED | Review state aggregation with multiple reviewers |
+| `feature/awaiting-review` | REVIEW_REQUIRED | PRs waiting for first review |
+| `feature/draft-work` | Draft | Draft PR display |
+| `feature/approved` | APPROVED | Approved state, LOW priority |
+| `feature/with-notes` | Open | Note detection (author self-annotations) |
+| `feature/extension-test` | Open | Stable target for browser extension E2E tests |
 
 ### Bot PRs (for "PRs to Review" / Review Queue testing)
 
-PRs authored by the bot account, requesting review from you:
+PRs authored by therm-cryst, requesting review from dmwyatt:
 
-| PR # | Name | Your Review State | Priority |
-|------|------|-------------------|----------|
-| #7 | Bot PR - Needs Review | None | HIGH |
-| #8 | Bot PR - With Comments | Commented (no decision) | MEDIUM |
-| #9 | Bot PR - You Approved | APPROVED | LOW |
-| #10 | Bot PR - Changes Requested | CHANGES_REQUESTED | BLOCKED |
+| Branch | Your Review State | Priority |
+|--------|-------------------|----------|
+| `feature/bot-needs-review-v2` | None | HIGH |
+| `feature/bot-with-activity` | Commented (no decision) | MEDIUM |
+| `feature/bot-approved-by-you` | APPROVED | LOW |
+| `feature/bot-changes-requested` | CHANGES_REQUESTED | BLOCKED |
 
 ### Aged PRs (maintained by GitHub Action)
 
-| PR # | Age | Purpose |
-|------|-----|---------|
-| #11* | 3+ days | Tests URGENT priority (no activity) |
-| #12* | 7+ days | Tests STALE priority |
+Labeled `aged-test-fixture`, created/maintained by the workflow:
 
-*Aged PRs are created and maintained by the `maintain-aged-prs` workflow.
+| Label | Age | Purpose |
+|-------|-----|---------|
+| Contains "Urgent" in title | 3+ days, no activity | Tests URGENT priority |
+| Contains "Stale" in title | 7+ days, with activity | Tests STALE priority |
 
 ## Setup
 
@@ -67,10 +69,15 @@ Aged PRs are maintained automatically by the `maintain-aged-prs` workflow which:
 ## Usage in Tests
 
 ```python
-# In E2E tests
+# In E2E tests (see my_dev_dashboard/e2e/conftest.py)
 TEST_REPO_OWNER = "dmwyatt"
 TEST_REPO_NAME = "work-dashboard-e2e-fixtures"
 
-# Browser extension tests use PR #6
-TEST_PR_NUMBER = 6
+# Browser extension tests use the extension-test PR
+# Look up PR number by branch: gh pr view feature/extension-test --json number
+```
+
+To find a PR by branch:
+```bash
+gh pr view feature/extension-test --json number,url
 ```
