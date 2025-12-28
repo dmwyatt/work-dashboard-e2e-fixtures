@@ -8,8 +8,20 @@
 
 set -euo pipefail
 
-REPO_OWNER=$(gh repo view --json owner -q '.owner.login')
-REPO_NAME=$(gh repo view --json name -q '.name')
+# Hardcoded for safety - this script should only run on the test fixtures repo
+REPO_OWNER="dmwyatt"
+REPO_NAME="work-dashboard-e2e-fixtures"
+
+# Safety check: verify we're in the correct repo
+CURRENT_REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "")
+EXPECTED_REPO="$REPO_OWNER/$REPO_NAME"
+
+if [[ "$CURRENT_REPO" != "$EXPECTED_REPO" ]]; then
+    echo "ERROR: This script must be run from the $EXPECTED_REPO repository."
+    echo "Current repo: ${CURRENT_REPO:-'(not a git repo or no remote)'}"
+    echo "Aborting for safety."
+    exit 1
+fi
 
 URGENT_AGE_DAYS=3
 STALE_AGE_DAYS=7
