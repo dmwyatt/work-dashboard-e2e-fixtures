@@ -35,6 +35,7 @@ if [[ -z "${GH_TEST_BOT_TOKEN:-}" ]]; then
 fi
 
 # Helper function to create a branch with changes
+# Adds 5 lines at the start of the file (lines 1-5 will be in the diff)
 create_branch_with_changes() {
     local branch_name="$1"
     local file_to_modify="$2"
@@ -46,8 +47,18 @@ create_branch_with_changes() {
     git pull origin main
     git checkout -b "$branch_name"
 
-    # Add a comment to the file to create a change
-    echo -e "\n# $change_description - $(date -Iseconds)" >> "$file_to_modify"
+    # Create a temp file with new content at the top
+    local temp_file=$(mktemp)
+    cat > "$temp_file" << HEADER
+# === $change_description ===
+# Created: $(date -Iseconds)
+# This section was added for E2E testing
+# Line 4: Test fixture content
+# Line 5: End of test fixture header
+
+HEADER
+    cat "$file_to_modify" >> "$temp_file"
+    mv "$temp_file" "$file_to_modify"
 
     git add "$file_to_modify"
     git commit -m "$change_description"
@@ -57,6 +68,7 @@ create_branch_with_changes() {
 }
 
 # Helper to add inline code comment via API
+# Note: Line must be in the PR diff. This function is non-fatal.
 add_code_comment() {
     local pr_number="$1"
     local file_path="$2"
@@ -67,17 +79,29 @@ add_code_comment() {
     local commit_id
     commit_id=$(gh pr view "$pr_number" --json headRefOid -q '.headRefOid')
 
-    local gh_cmd="gh"
-    if [[ -n "$token" ]]; then
-        gh_cmd="GH_TOKEN=$token gh"
-    fi
+    echo "  Adding code comment on $file_path:$line..."
 
-    eval "$gh_cmd api repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_number/comments \
-        -f body=\"$body\" \
-        -f commit_id=\"$commit_id\" \
-        -f path=\"$file_path\" \
-        -F line=$line \
-        -f side=RIGHT"
+    if [[ -n "$token" ]]; then
+        GH_TOKEN="$token" gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_number/comments" \
+            -f body="$body" \
+            -f commit_id="$commit_id" \
+            -f path="$file_path" \
+            -F line="$line" \
+            -f side=RIGHT 2>/dev/null || echo "  (code comment failed, continuing...)"
+    else
+        gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_number/comments" \
+            -f body="$body" \
+            -f commit_id="$commit_id" \
+            -f path="$file_path" \
+            -F line="$line" \
+            -f side=RIGHT 2>/dev/null || echo "  (code comment failed, continuing...)"
+    fi
+}
+
+# Helper to get the last line number of a file (for commenting on appended lines)
+get_last_line() {
+    local file_path="$1"
+    wc -l < "$file_path" | tr -d ' '
 }
 
 # Invite bot as collaborator (will fail silently if already invited)
@@ -114,16 +138,16 @@ gh pr comment "$PR1_NUMBER" --body "This is a conversation comment for testing."
 gh pr comment "$PR1_NUMBER" --body "Another conversation comment to verify counts."
 
 # Add code comments (from primary account - these become "notes" since same as author in test)
-add_code_comment "$PR1_NUMBER" "src/main.py" 5 "Consider adding input validation here."
+add_code_comment "$PR1_NUMBER" "src/main.py" 3 "Consider adding input validation here."
 
 # Add reviews from bot account
 if [[ -n "${GH_TEST_BOT_TOKEN:-}" ]]; then
     echo "Adding bot reviews..."
     GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr review "$PR1_NUMBER" --approve --body "LGTM! Approved."
 
-    # Add a code comment from bot, then request changes
-    add_code_comment "$PR1_NUMBER" "src/main.py" 10 "This could be more efficient." "$GH_TEST_BOT_TOKEN"
-    add_code_comment "$PR1_NUMBER" "src/main.py" 15 "Consider error handling here." "$GH_TEST_BOT_TOKEN"
+    # Add code comments from bot, then request changes
+    add_code_comment "$PR1_NUMBER" "src/main.py" 4 "This could be more efficient." "$GH_TEST_BOT_TOKEN"
+    add_code_comment "$PR1_NUMBER" "src/main.py" 5 "Consider error handling here." "$GH_TEST_BOT_TOKEN"
 
     GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr review "$PR1_NUMBER" --request-changes --body "Some changes needed."
 fi
@@ -213,12 +237,12 @@ PR5_NUMBER=$(gh pr view "feature/with-notes" --json number -q '.number')
 echo "Created PR #$PR5_NUMBER"
 
 # Add self-annotations (notes) - code comments from the PR author
-add_code_comment "$PR5_NUMBER" "src/utils.py" 8 "TODO: Add more validation here"
-add_code_comment "$PR5_NUMBER" "src/utils.py" 15 "Note to self: refactor this later"
+add_code_comment "$PR5_NUMBER" "src/utils.py" 2 "TODO: Add more validation here"
+add_code_comment "$PR5_NUMBER" "src/utils.py" 4 "Note to self: refactor this later"
 
 # Add feedback thread from bot
 if [[ -n "${GH_TEST_BOT_TOKEN:-}" ]]; then
-    add_code_comment "$PR5_NUMBER" "src/utils.py" 20 "This function could use some tests." "$GH_TEST_BOT_TOKEN"
+    add_code_comment "$PR5_NUMBER" "src/utils.py" 5 "This function could use some tests." "$GH_TEST_BOT_TOKEN"
 fi
 
 # ============================================================================
@@ -336,7 +360,7 @@ GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR8_NUMBER" --add-reviewer "$PRIMARY_
 
 # Add comments from primary user (simulating engagement)
 gh pr comment "$PR8_NUMBER" --body "I've started looking at this, will review soon."
-add_code_comment "$PR8_NUMBER" "src/utils.py" 5 "Question: why this approach instead of X?"
+add_code_comment "$PR8_NUMBER" "src/utils.py" 3 "Question: why this approach instead of X?"
 
 # ============================================================================
 # PR #9: Bot PR - You Approved (LOW priority)
@@ -385,7 +409,7 @@ echo "Created PR #$PR10_NUMBER (bot-authored)"
 # Request review and request changes as primary user
 GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR10_NUMBER" --add-reviewer "$PRIMARY_USERNAME" || true
 gh pr review "$PR10_NUMBER" --request-changes --body "Please fix the issues mentioned in my comments."
-add_code_comment "$PR10_NUMBER" "src/main.py" 8 "This needs error handling."
+add_code_comment "$PR10_NUMBER" "src/main.py" 3 "This needs error handling."
 
 # ============================================================================
 # Summary
