@@ -14,6 +14,10 @@ The Work Dashboard aggregates GitHub PR data. This test repo contains PRs in kno
 
 ## Test PRs
 
+### Your PRs (for "My Open PRs" testing)
+
+PRs authored by the primary account:
+
 | PR # | Name | State | Purpose |
 |------|------|-------|---------|
 | #1 | Mixed Reviews | CHANGES_REQUESTED | Tests review state aggregation with multiple reviewers |
@@ -22,10 +26,26 @@ The Work Dashboard aggregates GitHub PR data. This test repo contains PRs in kno
 | #4 | Approved PR | APPROVED | Tests approved state and LOW priority |
 | #5 | PR with Notes | Open | Tests note detection (author self-annotations) |
 | #6 | Extension Test | Open | Stable target for browser extension E2E tests |
-| #7* | Urgent PR | Open, 3+ days | Tests URGENT priority (no activity, aged) |
-| #8* | Stale PR | Open, 7+ days | Tests STALE priority (aged with activity) |
 
-*Aged PRs (#7, #8) are maintained by a GitHub Action that runs daily.
+### Bot PRs (for "PRs to Review" / Review Queue testing)
+
+PRs authored by the bot account, requesting review from you:
+
+| PR # | Name | Your Review State | Priority |
+|------|------|-------------------|----------|
+| #7 | Bot PR - Needs Review | None | HIGH |
+| #8 | Bot PR - With Comments | Commented (no decision) | MEDIUM |
+| #9 | Bot PR - You Approved | APPROVED | LOW |
+| #10 | Bot PR - Changes Requested | CHANGES_REQUESTED | BLOCKED |
+
+### Aged PRs (maintained by GitHub Action)
+
+| PR # | Age | Purpose |
+|------|-----|---------|
+| #11* | 3+ days | Tests URGENT priority (no activity) |
+| #12* | 7+ days | Tests STALE priority |
+
+*Aged PRs are created and maintained by the `maintain-aged-prs` workflow.
 
 ## Setup
 

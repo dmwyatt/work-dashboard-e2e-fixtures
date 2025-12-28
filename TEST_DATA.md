@@ -127,7 +127,63 @@ TEST_PR_URL = "https://github.com/{owner}/{repo}/pull/6"
 
 ---
 
-## PR #7: Urgent PR (Aged)
+# Bot-Authored PRs (for "PRs to Review" / Review Queue testing)
+
+These PRs are authored by the bot account and request review from you.
+
+## PR #7: Bot PR - Needs Your Review
+
+**Purpose:** Test HIGH priority in Review Queue (new PR, no activity from you)
+
+**Expected GraphQL Response:**
+```json
+{
+  "author": {"login": "<bot-username>"},
+  "reviewDecision": null,
+  "isDraft": false
+}
+```
+
+**Your State:** Not reviewed yet
+**Expected Priority:** HIGH
+
+---
+
+## PR #8: Bot PR - With Your Comments
+
+**Purpose:** Test MEDIUM priority (you've engaged but not submitted review)
+
+**Expected:**
+- You have PR-level comments
+- You have code thread comments
+- No formal review decision submitted
+
+**Your State:** Commented only (no APPROVE/CHANGES_REQUESTED)
+**Expected Priority:** MEDIUM
+
+---
+
+## PR #9: Bot PR - You Approved
+
+**Purpose:** Test LOW priority (you've approved)
+
+**Your State:** APPROVED
+**Expected Priority:** LOW
+
+---
+
+## PR #10: Bot PR - You Requested Changes
+
+**Purpose:** Test BLOCKED state (you've requested changes)
+
+**Your State:** CHANGES_REQUESTED
+**Expected Priority:** BLOCKED
+
+---
+
+# Aged PRs (maintained by GitHub Action)
+
+## PR #11: Urgent PR (Aged)
 
 **Purpose:** Test URGENT priority calculation
 
@@ -141,7 +197,7 @@ TEST_PR_URL = "https://github.com/{owner}/{repo}/pull/6"
 
 ---
 
-## PR #8: Stale PR (Aged)
+## PR #12: Stale PR (Aged)
 
 **Purpose:** Test STALE priority when staleness mode enabled
 

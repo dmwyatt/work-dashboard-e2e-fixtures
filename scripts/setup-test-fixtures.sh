@@ -238,6 +238,142 @@ echo "Created PR #$PR6_NUMBER"
 echo ""
 echo "=== Creating labels ==="
 gh label create "aged-test-fixture" --description "PR maintained by CI for age-based testing" --color "FBCA04" 2>/dev/null || true
+gh label create "review-queue-test" --description "Bot-authored PR for Review Queue testing" --color "1D76DB" 2>/dev/null || true
+
+# ============================================================================
+# BOT-AUTHORED PRs (for "PRs to Review" / Review Queue testing)
+# These PRs are created BY the bot, requesting review FROM the primary user
+# ============================================================================
+
+# Get primary user's username for requesting reviews
+PRIMARY_USERNAME=$(gh api user -q '.login')
+
+# Helper function to create a branch with changes using bot credentials
+create_bot_branch_with_changes() {
+    local branch_name="$1"
+    local file_to_modify="$2"
+    local change_description="$3"
+
+    echo "Creating bot branch: $branch_name"
+
+    git checkout main
+    git pull origin main
+    git checkout -b "$branch_name"
+
+    # Add a comment to the file to create a change
+    echo -e "\n# $change_description (bot) - $(date -Iseconds)" >> "$file_to_modify"
+
+    git add "$file_to_modify"
+    git commit -m "$change_description"
+
+    # Push using bot token
+    git push -u origin "$branch_name"
+
+    git checkout main
+}
+
+echo ""
+echo "=== Creating Bot-Authored PRs (for Review Queue testing) ==="
+
+# ============================================================================
+# PR #7: Bot PR - Needs Your Review (HIGH priority - new, no activity)
+# ============================================================================
+echo ""
+echo "=== Creating PR #7: Bot PR - Needs Review ==="
+
+create_bot_branch_with_changes "feature/bot-needs-review" "src/main.py" "Bot feature needing review"
+
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr create \
+    --base main \
+    --head "feature/bot-needs-review" \
+    --title "Test: Bot PR - Needs Your Review" \
+    --body "E2E test fixture for Review Queue testing.
+
+This PR is authored by the bot and requests review from the primary user.
+It should appear in the 'PRs to Review' section of the dashboard." \
+    --label "review-queue-test"
+
+PR7_NUMBER=$(GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr view "feature/bot-needs-review" --json number -q '.number')
+echo "Created PR #$PR7_NUMBER (bot-authored)"
+
+# Request review from primary user
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR7_NUMBER" --add-reviewer "$PRIMARY_USERNAME" || true
+
+# ============================================================================
+# PR #8: Bot PR - With Your Comments (MEDIUM priority - has activity)
+# ============================================================================
+echo ""
+echo "=== Creating PR #8: Bot PR - With Activity ==="
+
+create_bot_branch_with_changes "feature/bot-with-activity" "src/utils.py" "Bot feature with activity"
+
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr create \
+    --base main \
+    --head "feature/bot-with-activity" \
+    --title "Test: Bot PR - With Your Comments" \
+    --body "E2E test fixture for Review Queue with activity.
+
+This PR has comments from the primary user (you) but no review decision yet." \
+    --label "review-queue-test"
+
+PR8_NUMBER=$(GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr view "feature/bot-with-activity" --json number -q '.number')
+echo "Created PR #$PR8_NUMBER (bot-authored)"
+
+# Request review from primary user
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR8_NUMBER" --add-reviewer "$PRIMARY_USERNAME" || true
+
+# Add comments from primary user (simulating engagement)
+gh pr comment "$PR8_NUMBER" --body "I've started looking at this, will review soon."
+add_code_comment "$PR8_NUMBER" "src/utils.py" 5 "Question: why this approach instead of X?"
+
+# ============================================================================
+# PR #9: Bot PR - You Approved (LOW priority)
+# ============================================================================
+echo ""
+echo "=== Creating PR #9: Bot PR - You Approved ==="
+
+create_bot_branch_with_changes "feature/bot-approved-by-you" "src/config.py" "Bot feature you approved"
+
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr create \
+    --base main \
+    --head "feature/bot-approved-by-you" \
+    --title "Test: Bot PR - You Approved" \
+    --body "E2E test fixture for Review Queue with your approval.
+
+This PR shows as LOW priority since you've already approved it." \
+    --label "review-queue-test"
+
+PR9_NUMBER=$(GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr view "feature/bot-approved-by-you" --json number -q '.number')
+echo "Created PR #$PR9_NUMBER (bot-authored)"
+
+# Request review and approve as primary user
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR9_NUMBER" --add-reviewer "$PRIMARY_USERNAME" || true
+gh pr review "$PR9_NUMBER" --approve --body "LGTM!"
+
+# ============================================================================
+# PR #10: Bot PR - You Requested Changes (BLOCKED)
+# ============================================================================
+echo ""
+echo "=== Creating PR #10: Bot PR - You Requested Changes ==="
+
+create_bot_branch_with_changes "feature/bot-changes-requested" "src/main.py" "Bot feature needs changes"
+
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr create \
+    --base main \
+    --head "feature/bot-changes-requested" \
+    --title "Test: Bot PR - You Requested Changes" \
+    --body "E2E test fixture for Review Queue with changes requested.
+
+This PR shows as BLOCKED since you've requested changes." \
+    --label "review-queue-test"
+
+PR10_NUMBER=$(GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr view "feature/bot-changes-requested" --json number -q '.number')
+echo "Created PR #$PR10_NUMBER (bot-authored)"
+
+# Request review and request changes as primary user
+GH_TOKEN="$GH_TEST_BOT_TOKEN" gh pr edit "$PR10_NUMBER" --add-reviewer "$PRIMARY_USERNAME" || true
+gh pr review "$PR10_NUMBER" --request-changes --body "Please fix the issues mentioned in my comments."
+add_code_comment "$PR10_NUMBER" "src/main.py" 8 "This needs error handling."
 
 # ============================================================================
 # Summary
@@ -247,7 +383,7 @@ echo "============================================"
 echo "Setup complete!"
 echo "============================================"
 echo ""
-echo "Created PRs:"
+echo "Your PRs (for 'My Open PRs' testing):"
 echo "  #$PR1_NUMBER - Mixed Reviews (CHANGES_REQUESTED)"
 echo "  #$PR2_NUMBER - Awaiting Review (REVIEW_REQUIRED)"
 echo "  #$PR3_NUMBER - Draft PR"
@@ -255,7 +391,13 @@ echo "  #$PR4_NUMBER - Approved PR (LOW priority)"
 echo "  #$PR5_NUMBER - PR with Notes"
 echo "  #$PR6_NUMBER - Extension Test (for browser extension E2E)"
 echo ""
-echo "Aged PRs (#7, #8) will be created by the maintain-aged-prs.sh script"
+echo "Bot PRs (for 'PRs to Review' / Review Queue testing):"
+echo "  #$PR7_NUMBER - Needs Your Review (HIGH priority)"
+echo "  #$PR8_NUMBER - With Your Comments (MEDIUM priority)"
+echo "  #$PR9_NUMBER - You Approved (LOW priority)"
+echo "  #$PR10_NUMBER - You Requested Changes (BLOCKED)"
+echo ""
+echo "Aged PRs will be created by the maintain-aged-prs.sh script"
 echo "and maintained by the GitHub Action."
 echo ""
 echo "Next steps:"
