@@ -22,3 +22,5 @@ def process_data(data: dict) -> dict:
 
 if __name__ == "__main__":
     print(format_message("World", 42))
+
+# Aged PR fixture - urgent - 2026-01-01T23:11:58+00:00
