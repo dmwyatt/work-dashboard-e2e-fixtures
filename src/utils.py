@@ -23,3 +23,5 @@ def truncate_string(text: str, max_length: int = 100) -> str:
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."
+
+# Aged PR fixture - stale - 2026-01-01T23:12:01+00:00
